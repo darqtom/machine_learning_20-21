@@ -113,6 +113,32 @@ def plot_gradient_steps_2d(ax, dataset, gradient_descent_fn, grad_fn, loss_fn, n
     return final_v
 
 
+def visualize_normal_dist(X, loc, scale):
+    peak = 1 / np.sqrt(2 * np.pi * (scale ** 2))
+    plt.hist(X, bins=50, density=True)
+    plt.plot([loc - scale, loc - scale], [0, peak], color="r", label="1 sigma")
+    plt.plot([loc + scale, loc + scale], [0, peak], color="r")
 
+    plt.plot([loc - 2 * scale, loc - 2 * scale], [0, peak], color="b", label="2 sigma")
+    plt.plot([loc + 2 * scale, loc + 2 * scale], [0, peak], color="b")
 
+    plt.plot([loc - 3 * scale, loc - 3 * scale], [0, peak], color="g", label="3 sigma")
+    plt.plot([loc + 3 * scale, loc + 3 * scale], [0, peak], color="g")
+    plt.legend()
+
+    
+def scatter_with_whiten(X, whiten, name, standarize=False):
+    plt.title(name)
+    plt.scatter(X[:, 0], X[:, 1], label="Before whitening")
+    white_X = whiten(X)
+    plt.axis("equal")
+    plt.scatter(white_X[:, 0], white_X[:, 1], label="After whitening")
+    
+    
+    if standarize:
+        X_standarized = (X - X.mean(axis=0)) / X.std(axis=0)
+        plt.scatter(X_standarized[:, 0], X_standarized[:, 1], label="Standarized")
+        
+    plt.legend()
+    plt.show()
 

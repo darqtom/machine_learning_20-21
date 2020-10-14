@@ -58,3 +58,33 @@ def check_1_3(me_grad, mse_grad, max_grad, train_sets):
         max_grad(train_set_2d, np.array([-6.28, -4.45])),
         [-0.77818704, -0.62803259]
     ))
+
+def check_closest(fn):
+    inputs = [
+        (6, np.array([5, 3, 4])),
+        (10, np.array([12, 2, 8, 9, 13, 14])),
+        (-2, np.array([-5, 12, 6, 0, -14, 3]))
+    ]
+    assert np.isclose(fn(*inputs[0]), 5), "Jest błąd w funkcji closest!"
+    assert np.isclose(fn(*inputs[1]), 9), "Jest błąd w funkcji closest!"
+    assert np.isclose(fn(*inputs[2]), 0), "Jest błąd w funkcji closest!"
+
+
+def check_poly(fn):
+    inputs = [
+        (6, np.array([5.5, 3, 4])),
+        (10, np.array([12, 2, 8, 9, 13, 14])),
+        (-5, np.array([6, 3, -12, 9, -15]))
+    ]
+    assert np.isclose(fn(*inputs[0]), 167.5), "Jest błąd w funkcji poly!"
+    assert np.isclose(fn(*inputs[1]), 1539832), "Jest błąd w funkcji poly!"
+    assert np.isclose(fn(*inputs[2]), -10809), "Jest błąd w funkcji poly!"
+
+
+def check_multiplication_table(fn):
+    inputs = [3, 5]
+    assert np.all(fn(inputs[0]) == np.array([[1, 2, 3], [2, 4, 6], [3, 6, 9]])), "Jest błąd w funkcji multiplication_table!"
+    assert np.all(fn(inputs[1]) == np.array([
+        [1, 2, 3, 4, 5], [2, 4, 6, 8, 10], [3, 6, 9, 12, 15],
+        [4, 8, 12, 16, 20], [5, 10, 15, 20, 25]
+    ])), "Jest błąd w funkcji multiplication_table!"
