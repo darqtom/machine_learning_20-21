@@ -1,6 +1,5 @@
 import numpy as np
-
-
+import os
 
 def check_1_1(mean_error, mean_squared_error, max_error, train_sets):
     train_set_1d, train_set_2d, train_set_10d = train_sets
@@ -59,32 +58,56 @@ def check_1_3(me_grad, mse_grad, max_grad, train_sets):
         [-0.77818704, -0.62803259]
     ))
 
-def check_closest(fn):
-    inputs = [
-        (6, np.array([5, 3, 4])),
-        (10, np.array([12, 2, 8, 9, 13, 14])),
-        (-2, np.array([-5, 12, 6, 0, -14, 3]))
-    ]
-    assert np.isclose(fn(*inputs[0]), 5), "Jest błąd w funkcji closest!"
-    assert np.isclose(fn(*inputs[1]), 9), "Jest błąd w funkcji closest!"
-    assert np.isclose(fn(*inputs[2]), 0), "Jest błąd w funkcji closest!"
+def check_02_linear_regression(lr_cls):
+    from sklearn import datasets
+    os.makedirs(".checker/02/", exist_ok=True)
 
+    input_dataset = datasets.load_boston()
+    lr = lr_cls()
+    lr.fit(input_dataset.data, input_dataset.target)
+    returned = lr.predict(input_dataset.data)
+    # np.savez_compressed(".checker/05/lr_boston.out.npz", data=returned)
+    expected = np.load(".checker/05/lr_boston.out.npz")["data"]
+    assert np.allclose(expected, returned, rtol=1e-03, atol=1e-06), "Wrong prediction returned!"
 
-def check_poly(fn):
-    inputs = [
-        (6, np.array([5.5, 3, 4])),
-        (10, np.array([12, 2, 8, 9, 13, 14])),
-        (-5, np.array([6, 3, -12, 9, -15]))
-    ]
-    assert np.isclose(fn(*inputs[0]), 167.5), "Jest błąd w funkcji poly!"
-    assert np.isclose(fn(*inputs[1]), 1539832), "Jest błąd w funkcji poly!"
-    assert np.isclose(fn(*inputs[2]), -10809), "Jest błąd w funkcji poly!"
+    loss = lr.loss(input_dataset.data, input_dataset.target)
+    assert np.isclose(loss, 24.166099, rtol=1e-03, atol=1e-06), "Wrong value of the loss function!"
 
+    input_dataset = datasets.load_diabetes()
+    lr = lr_cls()
+    lr.fit(input_dataset.data, input_dataset.target)
+    returned = lr.predict(input_dataset.data)
+    # np.savez_compressed(".checker/05/lr_diabetes.out.npz", data=returned)
+    expected = np.load(".checker/05/lr_iris.out.npz")["data"]
+    assert np.allclose(expected, returned, rtol=1e-03, atol=1e-06), "Wrong prediction returned!"
 
-def check_multiplication_table(fn):
-    inputs = [3, 5]
-    assert np.all(fn(inputs[0]) == np.array([[1, 2, 3], [2, 4, 6], [3, 6, 9]])), "Jest błąd w funkcji multiplication_table!"
-    assert np.all(fn(inputs[1]) == np.array([
-        [1, 2, 3, 4, 5], [2, 4, 6, 8, 10], [3, 6, 9, 12, 15],
-        [4, 8, 12, 16, 20], [5, 10, 15, 20, 25]
-    ])), "Jest błąd w funkcji multiplication_table!"
+    loss = lr.loss(input_dataset.data, input_dataset.target)
+    assert np.isclose(loss, 26004.287402, rtol=1e-03, atol=1e-06), "Wrong value of the loss function!"
+
+def check_02_regularized_linear_regression(lr_cls):
+    from sklearn import datasets
+    os.makedirs(".checker/02/", exist_ok=True)
+
+    np.random.seed(54)
+    input_dataset = datasets.load_boston()
+    lr = lr_cls()
+    lr.fit(input_dataset.data, input_dataset.target)
+    returned = lr.predict(input_dataset.data)
+    # np.savez_compressed(".checker/05/rlr_boston.out.npz", data=returned)
+    expected = np.load(".checker/05/rlr_boston.out.npz")["data"]
+    assert np.allclose(expected, returned, rtol=1e-03, atol=1e-06), "Wrong prediction returned!"
+
+    loss = lr.loss(input_dataset.data, input_dataset.target)
+    assert np.isclose(loss, 42.8331406942, rtol=1e-03, atol=1e-06), "Wrong value of the loss function!"
+
+    np.random.seed(58)
+    input_dataset = datasets.load_diabetes()
+    lr = lr_cls(lr=1e-2, alpha=1e-4)
+    lr.fit(input_dataset.data, input_dataset.target)
+    returned = lr.predict(input_dataset.data)
+    # np.savez_compressed(".checker/05/rlr_diabetes.out.npz", data=returned)
+    expected = np.load(".checker/05/rlr_diabetes.out.npz")["data"]
+    assert np.allclose(expected, returned, rtol=1e-03, atol=1e-06), "Wrong prediction returned!"
+
+    loss = lr.loss(input_dataset.data, input_dataset.target)
+    assert np.isclose(loss, 26111.08336411, rtol=1e-03, atol=1e-06), "Wrong value of the loss function!"
