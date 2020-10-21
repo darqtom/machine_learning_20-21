@@ -1,3 +1,6 @@
+.DS_Store
+.idea/
+
 *_SOLVED.ipynb
 # Byte-compiled / optimized / DLL files
 __pycache__/
