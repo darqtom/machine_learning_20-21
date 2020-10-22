@@ -4,6 +4,32 @@ import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 from matplotlib import ticker, cm
 
+from collections import namedtuple
+import matplotlib.animation as animation
+from sklearn.datasets import make_moons, make_circles, make_blobs
+from sklearn.preprocessing import StandardScaler
+from sklearn.datasets import load_breast_cancer
+from sklearn.model_selection import train_test_split
+
+import sys
+
+
+if sys.version_info[0] < 3:
+    raise Exception("Must be using Python 3")
+elif sys.version_info[1] < 7:
+    Dataset = namedtuple(
+        "Dataset",
+        ["data", "target", "target_names", "filename"],
+    )
+    Dataset.__new__.__defaults__ = (None,) * len(Dataset._fields)
+else:
+    Dataset = namedtuple(
+        "Dataset",
+        ["data", "target", "target_names", "filename"],
+        defaults=(None, None, None, None)
+    )
+
+
 
 def get_fn_values(points, fn, X_vals):
     return np.array([fn(points, v) for v in X_vals])
@@ -142,3 +168,178 @@ def scatter_with_whiten(X, whiten, name, standarize=False):
     plt.legend()
     plt.show()
 
+    
+def generate_and_fit(mu, sigma, samples_num, grad_fn):
+    dataset = np.random.normal(mu, sigma, size=(samples_num, 1))
+    (final_mu, final_sigma), _, _ = gradient_descent(
+        grad_fn,
+        dataset,
+        learning_rate=5e-2 / dataset.shape[0],
+        num_steps=20000
+    )
+
+    print("Final mu: {:.2f}. Final sigma: {:.2f}".format(final_mu, final_sigma))
+    print("True mu: {:.2f}. True sigma: {:.2f}".format(mu, sigma))
+
+    plt.scatter(dataset, np.zeros_like(dataset), color="red", s=3.)
+    X = np.linspace(-5, 5, num=1000)
+    grad_Y = norm.pdf(X, loc=final_mu, scale=final_sigma)
+    plt.plot(X, grad_Y, label="Found distribution")
+    true_Y = norm.pdf(X, loc=mu, scale=sigma)
+    plt.plot(X, true_Y, label="True distribution")
+    plt.legend()
+    plt.show()
+
+
+def plot_clustering(X, y, k=3):
+    
+    assert X.shape[0] == y.shape[0]
+
+    f = plt.figure(figsize=(8, 8))
+    ax = f.add_subplot(111)
+    ax.axis('equal')
+    
+    for i in range(k):
+        ax.scatter(X[y == i, 0], X[y == i, 1])
+        
+        
+def animate_clustering(X, ys):
+
+    def update_colors(i, ys, scat):
+        scat.set_array(ys[i]) 
+        return scat,
+
+    n_frames = len(ys)
+
+    colors = ys[0]
+
+    fig = plt.figure(figsize=(8, 8))
+    scat = plt.scatter(X[:, 0], X[:, 1], c=colors)
+
+    ani = animation.FuncAnimation(fig, update_colors, frames=range(n_frames),
+                                  fargs=(ys, scat))
+    return ani
+
+
+def plot_cluster_comparison(datasets, results):
+    
+    assert len(results) == len(datasets),  "`results` list length does not match the dataset length!"
+
+    n_rows = len(results)
+    n_cols = len(results[0])
+
+    fig, axes = plt.subplots(nrows=n_rows, ncols=n_cols, figsize=(4 * n_rows, 4 * n_cols))
+
+    for ax, col in zip(axes[0], ['K-Means', 'DBSCAN', 'Agglomerative', 'GMM']):
+        ax.set_title(col, size=24)
+
+    for row, X, y_row in zip(axes, datasets, results):
+        for ax, y in zip(row, y_row):
+
+            ax.scatter(X[:,0], X[:,1], c=y.astype(np.int64))
+            
+
+def get_clustering_data():
+    
+    def standarize(X):
+        return StandardScaler().fit_transform(X)
+
+    n_samples = 1500
+    noisy_circles = make_circles(n_samples=n_samples, factor=.5, noise=.05)
+
+    noisy_moons = make_moons(n_samples=n_samples, noise=.05)
+    # Anisotropicly distributed data
+    random_state = 170
+    X, y = make_blobs(n_samples=n_samples, random_state=random_state)
+    transformation = [[0.6, -0.6], [-0.4, 0.8]]
+    X_aniso = np.dot(X, transformation)
+    aniso = (X_aniso, y)
+
+    # blobs with varied variances
+    varied = make_blobs(n_samples=n_samples,
+                                 cluster_std=[1.0, 2.5, 0.5],
+                                 random_state=random_state)
+
+    datasets = [noisy_circles[0],
+          noisy_moons[0],
+          X_aniso,
+          varied[0]]
+
+    datasets = [standarize(X) for X in datasets]
+
+    return datasets
+
+
+def get_toy_dataset():
+    first_example_cov = np.array([[1, 0.99], [0.99, 1]])
+    second_example_cov = np.array([[1, -0.99], [-0.99, 1]])
+    X1 = np.random.multivariate_normal([0, 0], first_example_cov, size=1000)
+    X2 = np.random.multivariate_normal([8, 8], second_example_cov, size=1000)
+    X = np.concatenate([X1, X2])
+    Y = np.concatenate([np.zeros(len(X1)), np.ones(len(X2))])
+
+    toy_dataset = Dataset(X, Y, Y, "Toy dataset")
+    return toy_dataset
+
+
+def test_pca(name, pca_cls, dataset, n_components=None, var_to_explain=None):
+    X = dataset.data
+    y = dataset.target
+    y_names = dataset.target_names
+
+    pca = pca_cls(n_components=n_components, var_to_explain=var_to_explain)
+    pca.fit(X)
+    B = pca.transform(X)
+    print(f"Dataset {name}, Data dimension after the projection: {B.shape[1]}")
+
+    if B.shape[1] == 1:
+        B = np.concatenate([B, np.zeros_like(B)], 1)
+        
+    scatter = plt.scatter(B[:, 0], B[:, 1], c=y)
+    scatter_objects, _ = scatter.legend_elements()
+    plt.title(name)
+    plt.legend(scatter_objects, y_names, loc="lower left", title="Classes")
+    plt.show()
+    
+def create_regression_dataset(func, sample_size=10, embed_func=None, embed_kwargs=None):
+    dataset_X = np.random.uniform(-2.5, 2.5, size=sample_size).reshape(-1, 1)
+    dataset_Y_clean = func(dataset_X)
+    dataset_Y = dataset_Y_clean + np.random.normal(0, 0.2, size=dataset_Y_clean.shape)
+    dataset_Y = dataset_Y.squeeze()
+    if embed_func is not None:
+        dataset_X = embed_func(dataset_X, **embed_kwargs)
+    return Dataset(dataset_X, dataset_Y)
+
+def plot_regression_dataset(dataset, name):
+    plt.plot([dataset.data.min(), dataset.data.max()], [0, 0], "k--")
+    plt.plot([0, 0], [dataset.target.min(), dataset.target.max()], "k--")
+    plt.title(name)
+    plt.scatter(dataset.data, dataset.target)
+    plt.show()
+
+def plot_regression_results(dataset, regression_cls, name, embed_func=None, regression_kwargs=None, **embed_kwargs):
+    if embed_func is None:
+        embed_func = lambda x: x
+    if regression_kwargs is None:
+        regression_kwargs = dict()
+    
+    X = embed_func(dataset.data, **embed_kwargs)
+    regression = regression_cls(**regression_kwargs)
+    regression.fit(X, dataset.target)
+    
+    loss_val = regression.loss(X, dataset.target)
+    linspace_X = np.linspace(-2.5, 2.5)
+    embedded_linspace = embed_func(linspace_X.reshape(-1, 1), **embed_kwargs)
+    predicted_Y = regression.predict(embedded_linspace)
+    
+    plt.title(name)
+    plt.plot(linspace_X, np.zeros_like(linspace_X), "k--")
+    print(f"Dataset {name}\nWartość funkcji kosztu: {regression.loss(X, dataset.target)}")
+    
+    plot_min = min(predicted_Y.min(), dataset.target.min())
+    plot_max = max(predicted_Y.max(), dataset.target.max())
+    plt.plot([0, 0], [plot_min, plot_max], "k--")
+    plt.plot(linspace_X, predicted_Y, c="C0", label="Regression results", linewidth=3)
+    plt.scatter(dataset.data, dataset.target, c="C1", label="Samples")
+    plt.legend()
+    plt.show()
