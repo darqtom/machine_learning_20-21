@@ -1,0 +1,1 @@
+Temat projektu: Analiza czynników ryzyka dla problemów pulmonologicznych. (Projekt realizowany we współpracy z AOTMiT)
