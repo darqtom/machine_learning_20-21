@@ -3,7 +3,7 @@ import utils
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 from matplotlib import ticker, cm
-
+import torch
 from collections import namedtuple
 import matplotlib.animation as animation
 from sklearn.datasets import make_moons, make_circles, make_blobs
@@ -343,3 +343,32 @@ def plot_regression_results(dataset, regression_cls, name, embed_func=None, regr
     plt.scatter(dataset.data, dataset.target, c="C1", label="Samples")
     plt.legend()
     plt.show()
+
+def plot_torch_fn(complex_fn, a, x, result):
+    linspace = torch.linspace(-5, 5, steps=400)
+    vals = complex_fn(a, linspace)
+    plt.plot(linspace.numpy(), vals.detach().numpy())
+    plt.scatter(x.detach().numpy(), complex_fn(a, x).detach().numpy(), label="Starting point")
+    plt.scatter(result, complex_fn(a, result), label="End point")
+    plt.legend()
+    
+     
+def get_classification_dataset_1d():
+    torch.manual_seed(8)
+    X = torch.cat([
+        torch.randn(10, 1) * 3 + 10,
+        torch.randn(10, 1) * 3 + 1,
+    ])
+
+    y = torch.cat([torch.zeros(10), torch.ones(10)])
+    return Dataset(X, y)
+
+def get_classification_dataset_2d():
+    torch.manual_seed(4)
+    X = torch.cat([
+        torch.randn(50, 2) * 2 + torch.tensor([4., 2.]),
+        torch.randn(50, 2) * 0.5 + torch.tensor([2., -4.]),
+    ])
+
+    y = torch.cat([torch.zeros(50), torch.ones(50)])
+    return Dataset(X, y)

@@ -1,5 +1,7 @@
 import numpy as np
 import os
+import torch
+import utils
 
 def check_1_1(mean_error, mean_squared_error, max_error, train_sets):
     train_set_1d, train_set_2d, train_set_10d = train_sets
@@ -22,7 +24,7 @@ def check_1_2(minimize_me, minimize_mse, minimize_max, train_set_1d):
     assert np.isclose(minimize_me(train_set_1d), -1.62603)
     assert np.isclose(minimize_me(train_set_1d ** 2), 3.965143)
     assert np.isclose(minimize_max(train_set_1d), 0.0152038)
-    assert np.isclose(minimize_max(train_set_1d / 2), 0.007601903895526174)
+    assert np.isclose(minimize_max(train_set_1d / 2), 0.004601903895526174)
 
 
 def check_1_3(me_grad, mse_grad, max_grad, train_sets):
@@ -111,3 +113,82 @@ def check_02_regularized_linear_regression(lr_cls):
 
     loss = lr.loss(input_dataset.data, input_dataset.target)
     assert np.isclose(loss, 26111.08336411, rtol=1e-03, atol=1e-06), "Wrong value of the loss function!"
+    
+    
+def check_4_1_mse(fn, datasets):
+    results = [torch.tensor(6.5344), torch.tensor(38.6220)]
+    for (data, param), loss in zip(datasets, results):
+        assert torch.allclose(fn(data, param), loss), "Wrong loss returned!"
+        
+def check_4_1_me(fn, datasets):
+    results = [torch.tensor(2.4330), torch.tensor(6.1551)]
+    for (data, param), loss in zip(datasets, results):
+        assert torch.allclose(fn(data, param), loss), "Wrong loss returned!"
+        
+def check_4_1_max(fn, datasets):
+    results = [torch.tensor(5.7086), torch.tensor(8.8057)]
+    for (data, param), loss in zip(datasets, results):
+        assert torch.allclose(fn(data, param), loss), "Wrong loss returned!"
+        
+def check_4_1_lin_reg(fn, data):
+    X, y, w = data
+    assert torch.allclose(fn(X, w, y), torch.tensor(100908.9141)), "Wrong loss returned!"
+    
+def check_4_1_reg_reg(fn, data):
+    X, y, w = data
+    assert torch.allclose(fn(X, w, y), torch.tensor(100910.8672)), "Wrong loss returned!"    
+
+
+def check_04_logistic_reg(lr_cls):
+    np.random.seed(10)
+    torch.manual_seed(10)
+    
+    # **** First dataset ****
+    input_dataset = utils.get_classification_dataset_1d()
+    lr = lr_cls(1)
+    lr.fit(input_dataset.data, input_dataset.target, lr=1e-3, num_steps=int(1e4))
+    returned = lr.predict(input_dataset.data)
+    save_path = ".checker/04/lr_dataset_1d.out.torch"
+    # torch.save(returned, save_path)
+    expected = torch.load(save_path)
+    assert torch.allclose(expected, returned, rtol=1e-03, atol=1e-06), "Wrong prediction returned!"
+
+    loss = lr.loss(input_dataset.data, input_dataset.target)
+    assert np.isclose(loss, 0.5098415017127991, rtol=1e-03, atol=1e-06), "Wrong value of the loss function!"
+    
+    preds_proba = lr.predict_proba(input_dataset.data)
+    save_path = ".checker/04/lr_dataset_1d_proba.out.torch"
+    # torch.save(returned, save_path)
+    expected = torch.load(save_path)
+    assert torch.allclose(expected, returned, rtol=1e-03, atol=1e-06), "Wrong prediction returned!"
+    
+    preds = lr.predict(input_dataset.data)
+    save_path = ".checker/04/lr_dataset_1d_preds.out.torch"
+    # torch.save(returned, save_path)
+    expected = torch.load(save_path)
+    assert torch.allclose(expected, returned, rtol=1e-03, atol=1e-06), "Wrong prediction returned!"
+
+    # **** Second dataset ****
+    input_dataset = utils.get_classification_dataset_2d()
+    lr = lr_cls(2)
+    lr.fit(input_dataset.data, input_dataset.target, lr=1e-2, num_steps=int(1e4))
+    returned = lr.predict(input_dataset.data)
+    save_path = ".checker/04/lr_dataset_2d.out.torch"
+    # torch.save(returned, save_path)
+    expected = torch.load(save_path)
+    assert torch.allclose(expected, returned, rtol=1e-03, atol=1e-06), "Wrong prediction returned!"
+
+    loss = lr.loss(input_dataset.data, input_dataset.target)
+    assert np.isclose(loss, 0.044230662286281586, rtol=1e-03, atol=1e-06), "Wrong value of the loss function!"
+    
+    preds_proba = lr.predict_proba(input_dataset.data)
+    save_path = ".checker/04/lr_dataset_2d_proba.out.torch"
+    # torch.save(returned, save_path)
+    expected = torch.load(save_path)
+    assert torch.allclose(expected, returned, rtol=1e-03, atol=1e-06), "Wrong prediction returned!"
+    
+    preds = lr.predict(input_dataset.data)
+    save_path = ".checker/04/lr_dataset_2d_preds.out.torch"
+    # torch.save(returned, save_path)
+    expected = torch.load(save_path)
+    assert torch.allclose(expected, returned, rtol=1e-03, atol=1e-06), "Wrong prediction returned!"
