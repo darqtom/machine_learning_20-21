@@ -372,3 +372,43 @@ def get_classification_dataset_2d():
 
     y = torch.cat([torch.zeros(50), torch.ones(50)])
     return Dataset(X, y)
+
+
+def visualize_optimizer(optim, n_steps, title=None, **params):
+
+    def f(w):
+        x = torch.tensor([0.2, 2], dtype=torch.float)
+        return torch.sum(x * w ** 2)
+
+    w = torch.tensor([-6, 2], dtype=torch.float, requires_grad=True)
+
+    optimizer = optim([w], **params)
+
+
+    history = [w.detach().numpy()]
+
+    for i in range(n_steps):
+
+        optimizer.zero_grad()
+
+        loss = f(w)
+        loss.backward()
+        optimizer.step()
+        history.append(w.clone().detach().numpy())
+
+    delta = 0.01
+    x = np.arange(-7.0, 7.0, delta)
+    y = np.arange(-4.0, 4.0, delta)
+    X, Y = np.meshgrid(x, y)
+
+    Z = 0.2 * X ** 2 + 2 * Y ** 2
+
+    fig, ax = plt.subplots(figsize=(14,6))
+    ax.contour(X, Y, Z, 20)
+
+    h = np.array(history)
+
+    ax.plot(h[:,0], h[:,1], 'x-')
+    
+    if title is not None:
+        ax.set_title(title)
