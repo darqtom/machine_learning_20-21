@@ -3,7 +3,9 @@ import utils
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 from matplotlib import ticker, cm
-import torch
+import torchvision
+from torchvision.transforms import Compose, Lambda, ToTensor
+
 from collections import namedtuple
 import matplotlib.animation as animation
 from sklearn.datasets import make_moons, make_circles, make_blobs
@@ -12,6 +14,7 @@ from sklearn.datasets import load_breast_cancer
 from sklearn.model_selection import train_test_split
 
 import sys
+import torch
 
 
 if sys.version_info[0] < 3:
@@ -412,3 +415,104 @@ def visualize_optimizer(optim, n_steps, title=None, **params):
     
     if title is not None:
         ax.set_title(title)
+     
+    
+class ModelTrainer:
+    def __init__(self, train_dataset, test_dataset, batch_size=128):
+        self.batch_size = batch_size
+        self.train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
+        self.test_loader = torch.utils.data.DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
+        self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+
+    def train(self, model, optimizer, loss_fn=torch.nn.functional.cross_entropy, n_epochs=100):
+        self.logs = {'train_loss': [], 'test_loss': [], 'train_accuracy': [], 'test_accuracy': []}
+        model = model.to(self.device)
+        correct, numel = 0, 0
+        for e in range(1, n_epochs + 1):
+            model.train()
+            for x, y in self.train_loader:
+                x = x.to(self.device)
+                y = y.to(self.device)
+                optimizer.zero_grad()
+                output = model(x)
+                y_pred = torch.argmax(output, dim=1)
+                correct += torch.sum(y_pred == y).item()
+                numel += self.batch_size
+                loss = loss_fn(output, y)
+                loss.backward()
+                optimizer.step()
+
+            self.logs['train_loss'].append(loss.item())
+            self.logs['train_accuracy'].append(correct / numel)
+            correct, numel = 0, 0
+
+            model.eval()
+            with torch.no_grad():
+                for x_test, y_test in self.test_loader:
+                    x_test = x_test.to(self.device)
+                    y_test = y_test.to(self.device)
+                    output = model(x_test)
+                    y_pred = torch.argmax(output, dim=1)
+                    correct += torch.sum(y_pred == y_test).item()
+                    numel += self.batch_size
+                loss = loss_fn(output, y_test)
+
+            self.logs['test_loss'].append(loss.item())
+            self.logs['test_accuracy'].append(correct / numel)
+            correct, numel = 0, 0
+
+        return self.logs
+
+    
+def load_mnist(train=True, shrinkage=None):
+    dataset = torchvision.datasets.MNIST(
+        root='.',
+        download=True,
+        train=train,
+        transform=Compose([ToTensor(), Lambda(torch.flatten)])
+    )
+    if shrinkage:
+        dataset_size = len(dataset)
+        perm = torch.randperm(dataset_size)
+        idx = perm[:int(dataset_size * shrinkage)]
+        return torch.utils.data.Subset(dataset, idx)
+    return dataset
+
+
+def show_results(orientation='horizontal', accuracy_bottom=None, loss_top=None, **histories):
+    if orientation == 'horizontal':
+        f, ax = plt.subplots(1, 2, figsize=(16, 5))
+    else:
+        f, ax = plt.subplots(2, 1, figsize=(16, 16))
+    for i, (name, h) in enumerate(histories.items()):
+        if len(histories) == 1:
+            ax[0].set_title("Best test accuracy: {:.2f}% (train: {:.2f}%)".format(
+                max(h['test_accuracy']) * 100,
+                max(h['train_accuracy']) * 100
+            ))
+        else:
+            ax[0].set_title("Accuracy")
+        ax[0].plot(h['train_accuracy'], color='C%s' % i, linestyle='--', label='%s train' % name)
+        ax[0].plot(h['test_accuracy'], color='C%s' % i, label='%s test' % name)
+        ax[0].set_xlabel('epochs')
+        ax[0].set_ylabel('accuracy')
+        if accuracy_bottom:
+            ax[0].set_ylim(bottom=accuracy_bottom)
+        ax[0].legend()
+
+        if len(histories) == 1:
+            ax[1].set_title("Minimal train loss: {:.4f} (test: {:.4f})".format(
+                min(h['train_loss']),
+                min(h['test_loss'])
+            ))
+        else:
+            ax[1].set_title("Loss")
+        ax[1].plot(h['train_loss'], color='C%s' % i, linestyle='--', label='%s train' % name)
+        ax[1].plot(h['test_loss'], color='C%s' % i, label='%s test' % name)
+        ax[1].set_xlabel('epochs')
+        ax[1].set_ylabel('loss')
+        if loss_top:
+            ax[1].set_ylim(top=loss_top)
+        ax[1].legend()
+
+    plt.show()

@@ -1,7 +1,12 @@
-import numpy as np
+from typing import Callable
+import urllib
+import json
+import ipykernel
+import re
 import os
+import numpy as np
 import torch
-import utils
+
 
 def check_1_1(mean_error, mean_squared_error, max_error, train_sets):
     train_set_1d, train_set_2d, train_set_10d = train_sets
@@ -258,3 +263,64 @@ def test_optimizer(optim_cls):
         for p, tp in zip(params, torch_params):
             assert torch.allclose(p, tp)
 
+            
+def test_droput(dropout_cls):
+
+    drop = dropout_cls(0.5)
+    drop.train()
+    x = torch.randn(10, 30)
+    out = drop(x)
+
+    for row in out:
+        zeros_in_row = len(torch.where(row == 0.)[0]) 
+        assert zeros_in_row > 0 and zeros_in_row < len(row)
+
+    drop_eval = dropout_cls(0.5)
+    drop_eval.eval()
+    x = torch.randn(10, 30)
+    out_eval = drop_eval(x)
+
+    for row in out_eval:
+        zeros_in_row = len(torch.where(row == 0.)[0]) 
+        assert zeros_in_row == 0
+        
+
+def test_bn(bn_cls):
+
+    torch.manual_seed(42)
+    bn = bn_cls(num_features=100)
+
+    opt = torch.optim.SGD(bn.parameters(), lr=0.1)
+
+    bn.train()
+    x = torch.rand(20, 100)
+    out = bn(x)
+
+    assert out.mean().abs().item() < 1e-4
+    assert abs(out.var().item() - 1) < 1e-1
+
+    assert (bn.sigma != 1).all()
+    assert (bn.mu != 1).all()
+
+    loss = 1 - out.mean()
+    loss.backward()
+    opt.step()
+
+    assert (bn.beta != 0).all()
+    
+    n_steps = 10
+
+    for i in range(n_steps):
+        x = torch.rand(20, 100)
+        out = bn(x)
+        loss = 1 - out.mean()
+        loss.backward()
+        opt.step()
+
+
+    torch.manual_seed(43)
+    test_x = torch.randn(20, 100)
+    bn.eval()
+    test_out = bn(test_x)
+
+    assert abs(test_out.mean() + 0.5) < 1e-1
